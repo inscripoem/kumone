@@ -38,7 +38,7 @@ struct MenuBarPlayer: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if let track = player.currentTrack {
+                if let track = player.currentTrack, track.supportsSongActions {
                     LikeButton(trackID: track.id, size: 14, showsActiveBackground: false)
                         .disabled(!account.isLoggedIn)
                         .accessibilityLabel(account.isLiked(track.id) ? String(localized: "取消喜欢") : String(localized: "喜欢"))

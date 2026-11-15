@@ -68,12 +68,12 @@ public struct KumoneApp: App {
                 Divider()
 
                 Button(player.currentTrack.map { AccountStore.shared.isLiked($0.id) ? String(localized: "取消喜欢") : String(localized: "喜欢") } ?? String(localized: "喜欢")) {
-                    if let track = player.currentTrack {
+                    if let track = player.currentTrack, track.supportsSongActions {
                         Task { await account.toggleLike(trackID: track.id) }
                     }
                 }
                 .keyboardShortcut(shortcuts.shortcut(for: .toggleLike, isGlobal: false).keyboardShortcut)
-                .disabled(!player.hasCurrentTrack)
+                .disabled(!player.hasCurrentTrack || player.currentTrack?.isPodcastProgram == true)
 
                 Button("歌词") {
                     player.activePanel = player.activePanel == .lyrics ? nil : .lyrics

@@ -120,7 +120,7 @@ public final class CarPlayConnector: NSObject {
             .removeDuplicates(by: { $0?.id == $1?.id })
             .sink { [weak self] track in
                 guard let self else { return }
-                let liked = track.map { AccountStore.shared.isLiked($0.id) } ?? false
+                let liked = track.map { $0.supportsSongActions && AccountStore.shared.isLiked($0.id) } ?? false
                 self.likeButton?.isSelected = liked
             }
             .store(in: &cancellables)
@@ -130,7 +130,8 @@ public final class CarPlayConnector: NSObject {
             .sink { [weak self] _ in
                 guard let self,
                       let track = PlayerService.shared.currentTrack else { return }
-                self.likeButton?.isSelected = AccountStore.shared.isLiked(track.id)
+                self.likeButton?.isSelected =
+                    track.supportsSongActions && AccountStore.shared.isLiked(track.id)
             }
             .store(in: &cancellables)
 
@@ -235,8 +236,9 @@ public final class CarPlayConnector: NSObject {
 
         // "Like" button — uses the system's "add to library" styled button.
         let like = CPNowPlayingAddToLibraryButton(handler: { _ in
-            guard let trackID = PlayerService.shared.currentTrack?.id else { return }
-            Task { await AccountStore.shared.toggleLike(trackID: trackID) }
+            guard let track = PlayerService.shared.currentTrack,
+                  track.supportsSongActions else { return }
+            Task { await AccountStore.shared.toggleLike(trackID: track.id) }
         })
         like.isEnabled = true
         like.isSelected = PlayerService.shared.currentTrack
@@ -260,6 +262,7 @@ public final class CarPlayConnector: NSObject {
         let player = PlayerService.shared
         let isFMMode = player.isFMMode
 
+        likeButton.isEnabled = player.currentTrack?.supportsSongActions ?? false
         dislikeButton.isEnabled = isFMMode
 
         var buttons: [CPNowPlayingButton] = [likeButton]

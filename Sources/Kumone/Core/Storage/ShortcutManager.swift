@@ -310,7 +310,7 @@ final class ShortcutManager: ObservableObject {
             case .cycleRepeatMode:
                 player.cycleRepeatMode()
             case .toggleLike:
-                if let track = player.currentTrack {
+                if let track = player.currentTrack, track.supportsSongActions {
                     await AccountStore.shared.toggleLike(trackID: track.id)
                 }
             case .toggleLyrics:
