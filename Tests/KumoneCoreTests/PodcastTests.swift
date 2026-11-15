@@ -27,7 +27,24 @@ private final class PodcastProtocol: URLProtocol, @unchecked Sendable {
     override func stopLoading() {}
 
     private static func formBody(_ request: URLRequest) -> [String: String] {
-        guard let data = request.httpBody, let raw = String(data: data, encoding: .utf8) else { return [:] }
+        let data: Data
+        if let body = request.httpBody {
+            data = body
+        } else if let stream = request.httpBodyStream {
+            stream.open()
+            defer { stream.close() }
+            var collected = Data()
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                guard count > 0 else { break }
+                collected.append(buffer, count: count)
+            }
+            data = collected
+        } else {
+            return [:]
+        }
+        guard let raw = String(data: data, encoding: .utf8) else { return [:] }
         var form: [String: String] = [:]
         for pair in raw.split(separator: "&") {
             let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
@@ -39,7 +56,7 @@ private final class PodcastProtocol: URLProtocol, @unchecked Sendable {
     }
 }
 
-@Suite("Podcasts")
+@Suite("Podcasts", .serialized)
 struct PodcastTests {
     init() { TestUpstream.configure() }
 
@@ -144,7 +161,7 @@ struct PodcastTests {
         #expect(PodcastProtocol.requests[0].body["cateId"] == "3")
         #expect(page.podcasts.count == 3 && page.hasMore && page.totalCount == 100)
 
-        let last = try await MusicAPI.podcasts(categoryID: 3, offset: 96, using: client())
+        let last = try await MusicAPI.podcasts(categoryID: 3, offset: 98, using: client())
         #expect(last.hasMore == false)
     }
 
