@@ -233,9 +233,10 @@ final class MusicClient: @unchecked Sendable {
     // MARK: - Requests
 
     /// POST to `https://<web host>/api<path>` with a plain form, as a
-    /// browser. Only for what the risk control refuses through the eapi
-    /// with -460, 检测到您的网络环境存在风险: the phone-number login and
-    /// following an artist.
+    /// browser. Used where the service answers only the web API: the
+    /// phone-number login, following an artist, and the podcast (djradio/dj)
+    /// route family — that one carries its own eapi fallback in
+    /// `MusicAPI+Podcasts`.
     func api(_ path: String, _ form: [String: String] = [:]) async throws -> Data {
         let authentication = authenticationState
         guard let host = Upstream.webHost, let url = URL(string: "https://\(host)/api\(path)") else {

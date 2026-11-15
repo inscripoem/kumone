@@ -54,10 +54,18 @@ struct Track: Codable, Hashable, Identifiable {
     let isCloud: Bool
     /// Some endpoints (cloudsearch, FM) embed the privilege in the track itself.
     let embeddedPrivilege: TrackPrivilege?
+    /// Present when this track is a podcast episode; the metadata carries the
+    /// show identity the song-shaped fields cannot. Keyed with a private
+    /// prefix so older snapshots and sync payloads decode unchanged.
+    let podcastMetadata: PodcastPlaybackMetadata?
 
     var artistNames: String { artists.map(\.name).joined(separator: " / ") }
     var duration: TimeInterval { TimeInterval(durationMS) / 1000 }
     var subtitle: String? { transNames.first ?? alias.first }
+    /// Song-only actions (like, download, comments, blacklist, add-to-playlist)
+    /// do not apply to podcast episodes.
+    var isPodcastProgram: Bool { podcastMetadata != nil }
+    var supportsSongActions: Bool { podcastMetadata == nil }
 
     private enum CodingKeys: String, CodingKey {
         case id, name
@@ -66,6 +74,31 @@ struct Track: Codable, Hashable, Identifiable {
         case dt, duration
         case alia, alias
         case tns, fee, mv, no, cd, noCopyrightRcmd, pc, privilege
+        case podcastMetadata = "_kumonePodcastMetadata"
+    }
+
+    init(id: Int = 0, name: String = "", artists: [ArtistRef] = [],
+         album: AlbumRef = AlbumRef(id: 0, name: "", picUrl: nil),
+         durationMS: Int = 0, alias: [String] = [], transNames: [String] = [],
+         fee: Int = 0, mvID: Int = 0, trackNo: Int = 0, disc: String? = nil,
+         noCopyright: Bool = false, isCloud: Bool = false,
+         embeddedPrivilege: TrackPrivilege? = nil,
+         podcastMetadata: PodcastPlaybackMetadata? = nil) {
+        self.id = id
+        self.name = name
+        self.artists = artists
+        self.album = album
+        self.durationMS = durationMS
+        self.alias = alias
+        self.transNames = transNames
+        self.fee = fee
+        self.mvID = mvID
+        self.trackNo = trackNo
+        self.disc = disc
+        self.noCopyright = noCopyright
+        self.isCloud = isCloud
+        self.embeddedPrivilege = embeddedPrivilege
+        self.podcastMetadata = podcastMetadata
     }
 
     init(from decoder: Decoder) throws {
@@ -90,6 +123,7 @@ struct Track: Codable, Hashable, Identifiable {
             && (try? c.decodeNil(forKey: .noCopyrightRcmd)) == false
         isCloud = c.contains(.pc) && (try? c.decodeNil(forKey: .pc)) == false
         embeddedPrivilege = try? c.decode(TrackPrivilege.self, forKey: .privilege)
+        podcastMetadata = try? c.decode(PodcastPlaybackMetadata.self, forKey: .podcastMetadata)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -108,6 +142,7 @@ struct Track: Codable, Hashable, Identifiable {
         if isCloud { try c.encode([String: String](), forKey: .pc) }
         if noCopyright { try c.encode([String: String](), forKey: .noCopyrightRcmd) }
         try c.encodeIfPresent(embeddedPrivilege, forKey: .privilege)
+        try c.encodeIfPresent(podcastMetadata, forKey: .podcastMetadata)
     }
 }
 
@@ -120,7 +155,6 @@ struct TrackPrivilege: Codable, Hashable {
     let cs: Bool?
     let maxbr: Int?
 }
-
 enum TrackPlayability: Hashable {
     case playable
     case vipOnly

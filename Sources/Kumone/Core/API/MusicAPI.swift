@@ -739,6 +739,7 @@ enum MusicAPI {
         case albums = 10
         case artists = 100
         case playlists = 1000
+        case podcasts = 1009
     }
 
     struct SearchResult: Decodable {
@@ -746,10 +747,19 @@ enum MusicAPI {
         let albums: [AlbumSummary]?
         let artists: [ArtistSummary]?
         let playlists: [PlaylistSummary]?
+        let podcasts: [Podcast]?
         let songCount: Int?
         let albumCount: Int?
         let artistCount: Int?
         let playlistCount: Int?
+        let podcastCount: Int?
+
+        private enum CodingKeys: String, CodingKey {
+            case songs, albums, artists, playlists
+            case podcasts = "djRadios"
+            case songCount, albumCount, artistCount, playlistCount
+            case podcastCount = "djRadiosCount"
+        }
     }
 
     struct SearchResponse: Decodable {
@@ -762,7 +772,8 @@ enum MusicAPI {
                                   ["s": keywords, "type": type.rawValue,
                                    "limit": limit, "offset": offset, "total": true])
         return resp.result ?? SearchResult(songs: nil, albums: nil, artists: nil, playlists: nil,
-                                           songCount: nil, albumCount: nil, artistCount: nil, playlistCount: nil)
+                                           podcasts: nil, songCount: nil, albumCount: nil,
+                                           artistCount: nil, playlistCount: nil, podcastCount: nil)
     }
 
     struct SearchSuggestResponse: Decodable {
