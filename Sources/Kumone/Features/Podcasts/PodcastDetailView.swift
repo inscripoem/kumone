@@ -8,8 +8,10 @@ struct PodcastDetailView: View {
     @State private var totalCount = 0
     @State private var hasMore = true
     @State private var isLoading = true
+    @State private var isLoadingPrograms = false
     @State private var isLoadingMore = false
     @State private var errorMessage: String?
+    @State private var programsError: String?
     @State private var order: PodcastProgramOrder = .newest
     @State private var isSubscribing = false
     @State private var isDescriptionExpanded = false
@@ -17,6 +19,7 @@ struct PodcastDetailView: View {
     private let player = PlayerService.shared
     @EnvironmentObject private var account: AccountStore
     @Environment(\.openLogin) private var openLogin
+    @Environment(\.openDestination) private var openDestination
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
@@ -59,6 +62,9 @@ struct PodcastDetailView: View {
         .task(id: podcastID) {
             await load()
         }
+        .onChange(of: order) { _ in
+            Task { await loadPrograms(reset: true) }
+        }
     }
 
     // MARK: - Loading
@@ -76,19 +82,22 @@ struct PodcastDetailView: View {
     }
 
     private func loadPrograms(reset: Bool) async {
-        if reset { isLoadingMore = false }
+        programsError = nil
+        if reset {
+            programs = []
+            isLoadingPrograms = true
+        }
+        defer { if reset { isLoadingPrograms = false } }
         do {
             let offset = reset ? 0 : programs.count
             let page = try await MusicAPI.podcastPrograms(
                 radioID: podcastID, offset: offset, ascending: order.ascending)
-            if reset { programs = [] }
             var known = Set(programs.map(\.id))
             programs += page.programs.filter { known.insert($0.id).inserted }
             totalCount = max(page.totalCount, podcast?.programCount ?? 0, programs.count)
             hasMore = page.hasMore
-        } catch where reset && programs.isEmpty {
-            errorMessage = error.localizedDescription
         } catch {
+            programsError = error.localizedDescription
             hasMore = false
         }
     }
@@ -224,8 +233,18 @@ struct PodcastDetailView: View {
             .padding(.horizontal, isCompact ? 16 : Theme.Layout.contentInset)
 
             if programs.isEmpty {
-                EmptyStateView(icon: "mic", title: "暂无节目")
+                if isLoadingPrograms {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                } else if let programsError {
+                    ErrorStateView(message: programsError) {
+                        Task { await loadPrograms(reset: true) }
+                    }
                     .frame(minHeight: 200)
+                } else {
+                    EmptyStateView(icon: "mic", title: "暂无节目")
+                        .frame(minHeight: 200)
+                }
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(programs.enumerated()), id: \.element.id) { _, program in
@@ -233,7 +252,8 @@ struct PodcastDetailView: View {
                             program: program,
                             isCurrent: player.currentTrack?.podcastMetadata?.programID == program.id,
                             isPlaying: player.isPlaying,
-                            onPlay: { play(program) }
+                            onPlay: { play(program) },
+                            onOpenDetail: { openDestination(.podcastProgram(program.id)) }
                         )
                     }
                 }
@@ -244,6 +264,23 @@ struct PodcastDetailView: View {
                         Spacer()
                         ProgressView().controlSize(.small)
                         Spacer()
+                    }
+                    .padding(.vertical, 12)
+                } else if let programsError {
+                    HStack(spacing: 8) {
+                        Text(programsError)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                        Button("重试") {
+                            Task {
+                                hasMore = true
+                                await loadMore()
+                            }
+                        }
+                        .font(.system(size: 11.5))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
                     }
                     .padding(.vertical, 12)
                 } else if hasMore {
