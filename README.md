@@ -43,6 +43,7 @@ Built with SwiftUI · No third-party server · Sparkle auto-updates
 - 🔐 **QR code login** — scan with the official app; cookies are persisted locally and auto-refreshed
 - 🏠 **Home** — daily recommendations, Personal FM, Heartbeat Mode, recommended playlists, radar playlists (Personal Radar family, personalized per account), charts, new albums, recommended artists
 - 🧭 **Explore** — category playlists (curated / official / charts / mood) with infinite scrolling
+- 🎙 **Podcasts** — browse recommended shows and categories, subscribe to shows, and play episodes; podcast search included
 - 🎵 **Playback** — AVPlayer engine, Standard to Hi-Res quality (lossless with 黑胶 VIP, automatic fallback), shuffle / repeat one / repeat all, play-next queue, gray track detection
 - 🚗 **CarPlay (iOS, opt-in)** — Now Playing, tabbed library, queue, and search templates ship in the binary; activation requires an [Apple CarPlay audio entitlement](https://developer.apple.com/contact/carplay/), which is not granted to most accounts. Build defaults to disabled so the source tree stays open-source-friendly; see [Enabling CarPlay](#enabling-carplay-ios) below
 - 🔓 **Gray track unblocking** — native implementation of the common unblock sources (pyncmd / Kuwo / Kugou); unavailable or trial-only tracks automatically resolve from third-party sources
@@ -52,7 +53,7 @@ Built with SwiftUI · No third-party server · Sparkle auto-updates
 - 🪟 **Desktop lyrics** — LyricsX-style floating always-on-top lyric line with translation; draggable, persisted position, visible across Spaces and full-screen apps
 - 📚 **Library** — liked songs, created / subscribed playlists, saved albums, followed artists, recently played, cloud disk
 - ✏️ **Playlist management** — create / delete / subscribe playlists, add / remove tracks, heart songs
-- 🔍 **Search** — aggregate / songs / artists / albums / playlists, trending keyword placeholder
+- 🔍 **Search** — aggregate / songs / artists / albums / playlists / podcasts, trending keyword placeholder
 - ⌨️ **System integration** — media keys / Control Center (Now Playing), scrobbling, playback queue restored across launches
 - ☁️ **iCloud Sync** — hand off playback progress and queues between Mac and iPhone, sync preferences, and share sign-in sessions; works via iCloud Drive shared folders and natively supports sideloaded builds without central servers (see [documentation](docs/icloud-sync/icloud-sync.md))
 - 🌐 **Localization** — English and Simplified Chinese, following the system language; bilingual release notes in Sparkle updates

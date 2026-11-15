@@ -83,6 +83,7 @@ enum SidebarItem: Hashable {
     case home
     case explore
     case fm
+    case podcasts
     case search
     case likedSongs
     case daily
@@ -104,6 +105,10 @@ enum Destination: Hashable {
     case collections
     case cloud
     case search(String)
+    case podcasts
+    case podcast(Int)
+    case podcastCategory(id: Int, name: String)
+    case podcastProgram(Int)
 }
 
 extension Array where Element == Destination {
@@ -143,6 +148,14 @@ struct DestinationsModifier: ViewModifier {
                     CloudView()
                 case .search(let query):
                     SearchView(query: query)
+                case .podcasts:
+                    PodcastHomeView()
+                case .podcast(let id):
+                    PodcastDetailView(podcastID: id)
+                case .podcastCategory(let id, let name):
+                    PodcastCategoryView(category: PodcastCategory(id: id, name: name))
+                case .podcastProgram(let id):
+                    PodcastProgramDetailView(programID: id)
                 }
             }
             .playerContentInset()

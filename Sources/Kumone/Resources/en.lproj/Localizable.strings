@@ -703,3 +703,36 @@
 "取消点赞" = "Unlike";
 "无法识别这首歌曲" = "Unable to identify this song";
 "无法识别这条评论" = "Unable to identify this comment";
+
+/* Podcasts */
+"播客" = "Podcasts";
+"发现声音节目" = "Discover shows and voices";
+"我的订阅" = "My Subscriptions";
+"精选播客" = "Featured Podcasts";
+"为你推荐" = "For You";
+"全部分类" = "All Categories";
+"订阅" = "Subscribe";
+"已订阅" = "Subscribed";
+"已订阅播客" = "Podcast subscribed";
+"已取消订阅" = "Podcast unsubscribed";
+"播放最新一期" = "Play Latest";
+"暂无可播放的节目" = "No playable episodes";
+"节目" = "Episodes";
+"最新" = "Newest";
+"最早" = "Oldest";
+"简介" = "Description";
+"收起" = "Collapse";
+"展开" = "Expand";
+"暂无节目" = "No episodes yet";
+"暂无播客" = "No podcasts found";
+"节目详情" = "Episode Details";
+"所属播客" = "Podcast";
+"发布于" = "Published";
+"时长" = "Duration";
+"播放量" = "Plays";
+"付费" = "Paid";
+"%lld 期" = "%lld episodes";
+"%@ 订阅" = "%@ subscribers";
+"%@ 次播放" = "%@ plays";
+"%@ 点赞" = "%@ likes";
+"搜索歌曲、歌手、专辑、歌单、播客" = "Search songs, artists, albums, playlists, podcasts";

@@ -8,6 +8,7 @@ final class SearchViewModel: ObservableObject {
         case artists = "歌手"
         case albums = "专辑"
         case playlists = "歌单"
+        case podcasts = "播客"
 
         var id: String { rawValue }
     }
@@ -18,6 +19,7 @@ final class SearchViewModel: ObservableObject {
     @Published var artists: [ArtistSummary] = []
     @Published var albums: [AlbumSummary] = []
     @Published var playlists: [PlaylistSummary] = []
+    @Published var podcasts: [Podcast] = []
     @Published var loadedTabs: Set<Tab> = []
     @Published private var loadingTabs: Set<Tab> = []
     /// Bumped on every query change so responses to an older query are dropped.
@@ -39,6 +41,7 @@ final class SearchViewModel: ObservableObject {
         artists = []
         albums = []
         playlists = []
+        podcasts = []
     }
 
     func load(tab: Tab) async {
@@ -60,14 +63,17 @@ final class SearchViewModel: ObservableObject {
             async let artistsTask = try? MusicAPI.search(trimmed, type: .artists, limit: 10)
             async let albumsTask = try? MusicAPI.search(trimmed, type: .albums, limit: 10)
             async let playlistsTask = try? MusicAPI.search(trimmed, type: .playlists, limit: 10)
-            let (songResult, artistResult, albumResult, playlistResult) =
-                await (songsTask, artistsTask, albumsTask, playlistsTask)
+            async let podcastsTask = try? MusicAPI.search(trimmed, type: .podcasts, limit: 10)
+            let (songResult, artistResult, albumResult, playlistResult, podcastResult) =
+                await (songsTask, artistsTask, albumsTask, playlistsTask, podcastsTask)
             guard generation == requestGeneration else { return }
             songs = songResult?.songs ?? []
             artists = artistResult?.artists ?? []
             albums = albumResult?.albums ?? []
             playlists = playlistResult?.playlists ?? []
-            if songResult == nil || artistResult == nil || albumResult == nil || playlistResult == nil {
+            podcasts = podcastResult?.podcasts ?? []
+            if songResult == nil || artistResult == nil || albumResult == nil
+                || playlistResult == nil || podcastResult == nil {
                 loadedTabs.remove(tab)
             }
         case .songs:
@@ -86,6 +92,10 @@ final class SearchViewModel: ObservableObject {
             let result = try? await MusicAPI.search(trimmed, type: .playlists, limit: 50)
             guard generation == requestGeneration else { return }
             if let result { playlists = result.playlists ?? playlists } else { loadedTabs.remove(tab) }
+        case .podcasts:
+            let result = try? await MusicAPI.search(trimmed, type: .podcasts, limit: 50)
+            guard generation == requestGeneration else { return }
+            if let result { podcasts = result.podcasts ?? podcasts } else { loadedTabs.remove(tab) }
         }
     }
 }
@@ -111,7 +121,7 @@ struct SearchView: View {
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "搜索歌曲、歌手、专辑、歌单"
+            prompt: "搜索歌曲、歌手、专辑、歌单、播客"
         )
         .onSubmit(of: .search) {
             model.setQuery(searchText)
@@ -209,11 +219,12 @@ struct SearchView: View {
 
     private var currentEmpty: Bool {
         switch model.tab {
-        case .all: return model.songs.isEmpty && model.artists.isEmpty
+        case .all: return model.songs.isEmpty && model.artists.isEmpty && model.podcasts.isEmpty
         case .songs: return model.songs.isEmpty
         case .artists: return model.artists.isEmpty
         case .albums: return model.albums.isEmpty
         case .playlists: return model.playlists.isEmpty
+        case .podcasts: return model.podcasts.isEmpty
         }
     }
 
@@ -246,6 +257,11 @@ struct SearchView: View {
                     playlistCards(model.playlists.prefix(8))
                 }
             }
+            if !model.podcasts.isEmpty {
+                Shelf(title: "播客", seeAll: { model.tab = .podcasts }) {
+                    podcastCards(model.podcasts.prefix(8))
+                }
+            }
             if currentEmpty, !model.isLoading {
                 EmptyStateView(icon: "magnifyingglass", title: "没有找到相关结果")
                     .frame(minHeight: 300)
@@ -266,6 +282,11 @@ struct SearchView: View {
         case .playlists:
             CardGrid {
                 playlistCards(model.playlists)
+            }
+            .padding(.horizontal, Theme.Layout.contentInset)
+        case .podcasts:
+            CardGrid {
+                podcastCards(model.podcasts)
             }
             .padding(.horizontal, Theme.Layout.contentInset)
         }
@@ -315,6 +336,22 @@ struct SearchView: View {
                     coverURL: playlist.coverURL?.resizedImageURL(384),
                     title: playlist.name,
                     playCount: playlist.playCount
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func podcastCards(_ items: some Collection<Podcast>) -> some View {
+        ForEach(Array(items)) { podcast in
+            NavigationLink {
+                PodcastDetailView(podcastID: podcast.id)
+            } label: {
+                CoverCardBody(
+                    coverURL: podcast.artworkURL,
+                    title: podcast.name,
+                    subtitle: podcast.subtitle,
+                    playCount: podcast.playCount
                 )
             }
             .buttonStyle(.plain)

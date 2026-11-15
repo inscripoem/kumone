@@ -705,6 +705,9 @@ struct IOSLibraryView: View {
                     NavigationLink(value: Destination.cloud) {
                         Label("音乐云盘", systemImage: "icloud.fill")
                     }
+                    NavigationLink(value: Destination.podcasts) {
+                        Label("播客", systemImage: "mic.fill")
+                    }
                 }
 
                 if !account.createdPlaylists.isEmpty {

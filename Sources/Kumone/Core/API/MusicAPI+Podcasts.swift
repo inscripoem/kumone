@@ -179,6 +179,19 @@ extension MusicAPI {
             totalCount: resp.count ?? resp.programs.count)
     }
 
+    static func podcastProgramDetail(id: Int,
+                                     using client: MusicClient = .shared) async throws -> PodcastProgram {
+        struct Response: Decodable {
+            let program: PodcastProgram?
+        }
+        let resp = try await podcastRequest(Response.self, "/dj/program/detail",
+                                            ["id": String(id)], using: client)
+        guard let program = resp.program else {
+            throw MusicAPIError.decoding("dj/program/detail: no program")
+        }
+        return program
+    }
+
     // MARK: - Subscription
 
     static func subscribedPodcasts(offset: Int = 0, limit: Int = 50,

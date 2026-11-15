@@ -354,6 +354,8 @@ struct MainWindow: View {
             ExploreView()
         case .fm:
             FMView()
+        case .podcasts:
+            PodcastHomeView()
         case .search:
             // iPad search entry: SearchView's `.searchable` bar surfaces in the
             // detail nav bar (the desktop toolbar search field doesn't render on
