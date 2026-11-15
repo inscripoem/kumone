@@ -15,7 +15,7 @@ extension MusicAPI {
         do {
             data = try await client.api(path, podcastForm(form, client: client))
         } catch {
-            guard isTransportFailure(error) else { throw error }
+            guard isRetryableFailure(error) else { throw error }
             data = try await client.eapi(path, anyForm(podcastForm(form, client: client)))
         }
         return try client.decoded(Response.self, from: data)
@@ -35,12 +35,18 @@ extension MusicAPI {
         form.mapValues { $0 as Any }
     }
 
-    private static func isTransportFailure(_ error: Error) -> Bool {
+    private static func isRetryableFailure(_ error: Error) -> Bool {
         if error is URLError { return true }
         guard let apiError = error as? MusicAPIError else { return false }
         switch apiError {
         case .http, .decoding: return true
-        case .business, .needLogin, .notConfigured: return false
+        // The plain web route is the one risk control challenges; negative
+        // codes are its verdicts (-460 网络环境存在风险 and friends) and 5xx
+        // are the service having a bad moment. A login answer (301/mapped to
+        // .needLogin) or a real 4xx is the caller's business, not a transport
+        // problem, and is not retried.
+        case .business(let code, _): return code < 0 || code >= 500
+        case .needLogin, .notConfigured: return false
         }
     }
 

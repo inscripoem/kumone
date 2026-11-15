@@ -130,6 +130,20 @@ struct PodcastTests {
         #expect(PodcastProtocol.requests.map(\.path) == ["/api/djradio/recommend/v1"])
     }
 
+    @Test func riskControlAnswerFallsBackToEapi() async throws {
+        reset { request in
+            request.url?.path.hasPrefix("/api/") == true
+                ? (200, #"{"code":-460,"message":"risk control"}"#)
+                : (200, self.recommendBody)
+        }
+
+        let podcasts = try await MusicAPI.recommendedPodcasts(using: client())
+
+        #expect(podcasts.map(\.id) == [1_230_174_483])
+        #expect(PodcastProtocol.requests.map(\.path) ==
+                ["/api/djradio/recommend/v1", "/eapi/djradio/recommend/v1"])
+    }
+
     // MARK: - Decoding
 
     @Test func podcastDecodesRecommendationCopyAndHost() async throws {
