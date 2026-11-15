@@ -143,6 +143,8 @@ final class NowPlayingManager {
         center.likeCommand.localizedShortTitle = String(localized: "喜欢")
         center.likeCommand.addTarget { [weak player] _ in
             guard let track = player?.currentTrack else { return .noActionableNowPlayingItem }
+            // Episodes have no song to heart.
+            guard !track.isPodcastProgram else { return .noActionableNowPlayingItem }
             Task { @MainActor in
                 await AccountStore.shared.toggleLike(trackID: track.id)
                 NowPlayingManager.shared.refreshLikeState()
@@ -212,7 +214,7 @@ final class NowPlayingManager {
 
     /// Reflects the current track's hearted state on the like command.
     func refreshLikeState() {
-        guard let track = player?.currentTrack else {
+        guard let track = player?.currentTrack, !track.isPodcastProgram else {
             commandCenter.likeCommand.isActive = false
             return
         }

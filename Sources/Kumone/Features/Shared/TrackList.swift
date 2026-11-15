@@ -317,25 +317,27 @@ struct TrackRow: View {
 
     private var likeAndDuration: some View {
         HStack(spacing: 8) {
-            #if os(macOS)
-            // A saved track already keeps the button visible through its own state.
-            TrackDownloadButton(track: track, isVisible: isHovering)
-                // Keep download confirmation and in-flight button state bound
-                // to their original song without replacing the whole row.
-                .id(track.id)
-            #else
-            TrackDownloadButton(track: track, isVisible: false)
-            #endif
-            let liked = account.isLiked(track.id)
-            Button {
-                Task { await account.toggleLike(trackID: track.id) }
-            } label: {
-                Image(systemName: liked ? "heart.fill" : "heart")
-                    .font(.system(size: 12))
-                    .foregroundStyle(liked ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.secondary))
+            if track.supportsSongActions {
+                #if os(macOS)
+                // A saved track already keeps the button visible through its own state.
+                TrackDownloadButton(track: track, isVisible: isHovering)
+                    // Keep download confirmation and in-flight button state bound
+                    // to their original song without replacing the whole row.
+                    .id(track.id)
+                #else
+                TrackDownloadButton(track: track, isVisible: false)
+                #endif
+                let liked = account.isLiked(track.id)
+                Button {
+                    Task { await account.toggleLike(trackID: track.id) }
+                } label: {
+                    Image(systemName: liked ? "heart.fill" : "heart")
+                        .font(.system(size: 12))
+                        .foregroundStyle(liked ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.secondary))
+                }
+                .buttonStyle(.pressable)
+                .opacity(liked || isHovering ? 1 : 0)
             }
-            .buttonStyle(.pressable)
-            .opacity(liked || isHovering ? 1 : 0)
 
             Text(Formatters.duration(track.duration))
                 .font(.system(size: 11.5).monospacedDigit())
@@ -347,52 +349,59 @@ struct TrackRow: View {
     @ViewBuilder
     private var contextMenuItems: some View {
         Button("播放") { onPlay() }
-        TrackDownloadActions(track: track)
         Button("下一首播放") {
             player.addToPlayNext(track)
         }
-        Divider()
-        let liked = account.isLiked(track.id)
-        Button(liked ? String(localized: "从「我喜欢」中移除") : String(localized: "添加到「我喜欢」")) {
-            Task { await account.toggleLike(trackID: track.id) }
-        }
-        Button("收藏到歌单…") {
-            addToPlaylistTrack = track
-        }
-        if let pid = removableFromPlaylistID {
-            Button("从歌单中删除", role: .destructive) {
-                Task {
-                    do {
-                        try await MusicAPI.playlistTracks(op: "del", playlistID: pid, trackIDs: [track.id])
-                        onRemoved?()
-                        ToastCenter.shared.show(String(localized: "已从歌单中删除"))
-                    } catch {
-                        ToastCenter.shared.show(error.localizedDescription)
+        if track.supportsSongActions {
+            TrackDownloadActions(track: track)
+            Divider()
+            let liked = account.isLiked(track.id)
+            Button(liked ? String(localized: "从「我喜欢」中移除") : String(localized: "添加到「我喜欢」")) {
+                Task { await account.toggleLike(trackID: track.id) }
+            }
+            Button("收藏到歌单…") {
+                addToPlaylistTrack = track
+            }
+            if let pid = removableFromPlaylistID {
+                Button("从歌单中删除", role: .destructive) {
+                    Task {
+                        do {
+                            try await MusicAPI.playlistTracks(op: "del", playlistID: pid, trackIDs: [track.id])
+                            onRemoved?()
+                            ToastCenter.shared.show(String(localized: "已从歌单中删除"))
+                        } catch {
+                            ToastCenter.shared.show(error.localizedDescription)
+                        }
                     }
                 }
             }
-        }
-        if !account.isLiked(track.id), let onRecommendationReplaced {
-            Button(String(localized: "不感兴趣")) {
-                guard !isReplacingRecommendation else { return }
-                let trackID = track.id
-                replacingRecommendationIDs.insert(trackID)
-                Task {
-                    defer { replacingRecommendationIDs.remove(trackID) }
-                    do {
-                        let replacement = try await MusicAPI.dislikeRecommendedSong(id: track.id)
-                        onRecommendationReplaced(replacement)
-                        ToastCenter.shared.show(String(localized: "已减少推荐"))
-                    } catch {
-                        ToastCenter.shared.show(error.localizedDescription)
+            if !account.isLiked(track.id), let onRecommendationReplaced {
+                Button(String(localized: "不感兴趣")) {
+                    guard !isReplacingRecommendation else { return }
+                    let trackID = track.id
+                    replacingRecommendationIDs.insert(trackID)
+                    Task {
+                        defer { replacingRecommendationIDs.remove(trackID) }
+                        do {
+                            let replacement = try await MusicAPI.dislikeRecommendedSong(id: track.id)
+                            onRecommendationReplaced(replacement)
+                            ToastCenter.shared.show(String(localized: "已减少推荐"))
+                        } catch {
+                            ToastCenter.shared.show(error.localizedDescription)
+                        }
                     }
                 }
+                .disabled(isReplacingRecommendation)
             }
-            .disabled(isReplacingRecommendation)
+            TrackBlacklistMenu(track: track)
+            SongCommentsMenuButton(track: track) {
+                commentsTrack = track
+            }
         }
-        TrackBlacklistMenu(track: track)
-        SongCommentsMenuButton(track: track) {
-            commentsTrack = track
+        if let metadata = track.podcastMetadata, metadata.radioID > 0 {
+            Button("查看播客：\(metadata.radioName)") {
+                openDestination(.podcast(metadata.radioID))
+            }
         }
         Divider()
         if track.album.id > 0 {
@@ -405,10 +414,12 @@ struct TrackRow: View {
                 openDestination(.artist(artist.id))
             }
         }
-        Divider()
-        Button("复制链接") {
-            Platform.copyToPasteboard(string: Upstream.songPageURL(id: track.id)?.absoluteString ?? "")
-            ToastCenter.shared.show(String(localized: "链接已复制"))
+        if track.supportsSongActions {
+            Divider()
+            Button("复制链接") {
+                Platform.copyToPasteboard(string: Upstream.songPageURL(id: track.id)?.absoluteString ?? "")
+                ToastCenter.shared.show(String(localized: "链接已复制"))
+            }
         }
     }
 }

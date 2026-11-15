@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// "查看评论" in a song's menus. Cloud uploads have no public thread.
+/// "查看评论" in a song's menus. Cloud uploads and podcast episodes have no
+/// public song thread.
 struct SongCommentsMenuButton: View {
     let track: Track
     var showsIcons = false
     let action: () -> Void
 
-    static func isAvailable(for track: Track) -> Bool { track.id > 0 && !track.isCloud }
+    static func isAvailable(for track: Track) -> Bool {
+        track.id > 0 && !track.isCloud && !track.isPodcastProgram
+    }
 
     var body: some View {
         if Self.isAvailable(for: track) {

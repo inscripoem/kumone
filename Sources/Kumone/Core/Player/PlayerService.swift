@@ -1416,6 +1416,15 @@ final class PlayerService: ObservableObject {
         gaplessPrefetchDeferred = false
         let autoMix = SettingsManager.shared.automixEnabled
         let target = autoAdvanceTarget()
+        // Episodes get neither prefetch nor a planned seam: the hand-over
+        // machinery builds transitions from beat analysis, which talk
+        // programs do not have. The plain advance path resolves the next
+        // episode on demand instead.
+        if currentTrack?.isPodcastProgram == true || target?.isPodcastProgram == true {
+            currentAnalysisTask?.cancel()
+            currentAnalysisTask = nil
+            return
+        }
         if !autoMix {
             currentAnalysisTask?.cancel()
             currentAnalysisTask = nil
@@ -2730,6 +2739,8 @@ final class PlayerService: ObservableObject {
     }
 
     private func loadLyrics(for track: Track, generation: Int) async {
+        // Episodes have no lyrics; the show notes render in their place.
+        guard !track.isPodcastProgram else { return }
         let scope = offlineAccountScope
         if let scope, let saved = await OfflineMetadataStore.shared.lyrics(trackID: track.id, scope: scope) {
             guard !Task.isCancelled, generation == resolveGeneration else { return }
@@ -3257,13 +3268,16 @@ final class PlayerService: ObservableObject {
     private func scrobbleStartIfNeeded(_ track: Track) {
         guard !startScrobbled else { return }
         startScrobbled = true
+        // Podcast listening is not song play history; skip the weblog.
+        guard !track.isPodcastProgram else { return }
         let tid = track.id
         let sid = source.sourceID
         Task.detached { await MusicAPI.scrobbleStart(trackID: tid, sourceID: sid) }
     }
 
     private func scrobbleIfNeeded(completed: Bool) {
-        guard let track = currentTrack, !scrobbled, progress > 1 else { return }
+        guard let track = currentTrack, !scrobbled, progress > 1,
+              !track.isPodcastProgram else { return }
         scrobbled = true
         let seconds = completed ? Int(duration) : Int(progress)
         let sourceID = source.sourceID
@@ -3457,6 +3471,12 @@ final class PlayerService: ObservableObject {
     /// Costs one optional test per tick with the mode off.
     private func updateAutoMixPick() {
         guard autoMixPickPending, let selector = queueOrderSelector else { return }
+        // An episode has no beat grid to plan a transition with; keep the
+        // list's order and end the round, like a trivial queue does.
+        if currentTrack?.isPodcastProgram == true {
+            commitAutoMixPick(nil, pool: [], reason: "podcast", because: "podcast")
+            return
+        }
         let remaining = autoMixRemaining()
         let atDeadline: Bool
         switch Self.autoMixPickStep(

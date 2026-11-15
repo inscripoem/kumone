@@ -51,7 +51,7 @@ struct PlayerBar: View {
             // Only as wide as the title and artist need, so the like button
             // follows the title however wide the bar is.
             .layoutPriority(1)
-            if let track = player.currentTrack {
+            if let track = player.currentTrack, track.supportsSongActions {
                 LikeButton(trackID: track.id)
             }
             Spacer(minLength: 0)

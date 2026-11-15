@@ -168,6 +168,7 @@ struct NowPlayingView: View {
     }
 
     private var hasLyricsColumn: Bool {
+        if player.currentTrack?.isPodcastProgram == true { return true }
         if let lyrics = player.lyrics, !lyrics.isEmpty { return true }
         return player.lyrics == nil // still loading — keep layout stable
     }
@@ -420,7 +421,7 @@ struct NowPlayingView: View {
             }
             .accessibilityLabel("下一首")
 
-            if let track = player.currentTrack {
+            if let track = player.currentTrack, track.supportsSongActions {
                 let liked = account.isLiked(track.id)
                 Button {
                     Task { await account.toggleLike(trackID: track.id) }
@@ -1133,7 +1134,7 @@ struct NowPlayingView: View {
             // adding or removing it re-divides the equal-width row, which made
             // every other control jump sideways during a track change.
             Group {
-                if let track = player.currentTrack {
+                if let track = player.currentTrack, track.supportsSongActions {
                     let liked = account.isLiked(track.id)
                     circleButton(
                         icon: liked ? "heart.fill" : "heart",
@@ -1348,6 +1349,44 @@ struct NowPlayingView: View {
     /// landscape immersive page. Insets are the space parked above and below
     /// the lines so the active one can sit mid-viewport; the short landscape
     /// page needs them much smaller than a full-height window does.
+    /// A podcast episode's place: the show, the host and the show notes,
+    /// where a song would have its lyrics.
+    private func podcastNotesScroll(
+        topInset: CGFloat,
+        bottomInset: CGFloat,
+        horizontalPadding: CGFloat
+    ) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                Color.clear.frame(height: topInset)
+                if let metadata = player.currentTrack?.podcastMetadata {
+                    Text(metadata.radioName)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                    if !metadata.hostName.isEmpty {
+                        Text(metadata.hostName)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    if let notes = metadata.programDescription, !notes.isEmpty {
+                        Text(notes)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineSpacing(6)
+                            .textSelection(.enabled)
+                    } else {
+                        Text("本期节目没有文字简介")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                }
+                Color.clear.frame(height: bottomInset)
+            }
+            .padding(.horizontal, horizontalPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     @ViewBuilder
     private func lyricsScroll(
         topInset: CGFloat,
@@ -1355,7 +1394,10 @@ struct NowPlayingView: View {
         horizontalPadding: CGFloat,
         karaoke: Bool = false
     ) -> some View {
-        if let lyrics = player.lyrics, !lyrics.isEmpty {
+        if player.currentTrack?.isPodcastProgram == true {
+            podcastNotesScroll(topInset: topInset, bottomInset: bottomInset,
+                               horizontalPadding: horizontalPadding)
+        } else if let lyrics = player.lyrics, !lyrics.isEmpty {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     LazyVStack(alignment: karaoke ? .center : .leading,
@@ -1817,63 +1859,67 @@ private struct CompactTrackHeader: View {
             if let track = player.currentTrack {
                 let liked = account.isLiked(track.id)
                 HStack(spacing: 0) {
-                    Button {
-                        Task { await account.toggleLike(trackID: track.id) }
-                    } label: {
-                        Image(systemName: liked ? "heart.fill" : "heart")
-                            .font(.system(size: 21, weight: .medium))
-                            .foregroundStyle(liked ? Theme.accent : .white.opacity(0.88))
-                            .frame(width: 44, height: 44)
+                    if track.supportsSongActions {
+                        Button {
+                            Task { await account.toggleLike(trackID: track.id) }
+                        } label: {
+                            Image(systemName: liked ? "heart.fill" : "heart")
+                                .font(.system(size: 21, weight: .medium))
+                                .foregroundStyle(liked ? Theme.accent : .white.opacity(0.88))
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.pressable)
+                        .accessibilityLabel(liked ? "取消收藏" : "收藏")
+                        .accessibilityIdentifier("immersiveFavoriteButton")
                     }
-                    .buttonStyle(.pressable)
-                    .accessibilityLabel(liked ? "取消收藏" : "收藏")
-                    .accessibilityIdentifier("immersiveFavoriteButton")
 
-                    Menu {
-                        TrackDownloadActions(track: track, showsIcons: true)
-                        TrackBlacklistMenu(track: track, showsIcons: true)
-                        SongCommentsMenuButton(track: track, showsIcons: true) {
-                            commentsTrack = track
-                        }
-                        Divider()
-                        Button {
-                            player.addToPlayNext(track)
+                    if track.supportsSongActions {
+                        Menu {
+                            TrackDownloadActions(track: track, showsIcons: true)
+                            TrackBlacklistMenu(track: track, showsIcons: true)
+                            SongCommentsMenuButton(track: track, showsIcons: true) {
+                                commentsTrack = track
+                            }
+                            Divider()
+                            Button {
+                                player.addToPlayNext(track)
+                            } label: {
+                                Label("下一首播放", systemImage: "text.line.first.and.arrowtriangle.forward")
+                            }
+
+                            Button {
+                                showAddToPlaylist = true
+                            } label: {
+                                Label("加入歌单…", systemImage: "music.note.list")
+                            }
+
+                            Divider()
+
+                            #if os(iOS)
+                            SleepTimerMenu(player: player)
+
+                            Divider()
+                            #endif
+
+                            Button {
+                                Platform.copyToPasteboard(
+                                    string: Upstream.songPageURL(id: track.id)?.absoluteString ?? ""
+                                )
+                                ToastCenter.shared.show(String(localized: "链接已复制"))
+                            } label: {
+                                Label("复制链接", systemImage: "link")
+                            }
                         } label: {
-                            Label("下一首播放", systemImage: "text.line.first.and.arrowtriangle.forward")
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 21, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.88))
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
-
-                        Button {
-                            showAddToPlaylist = true
-                        } label: {
-                            Label("加入歌单…", systemImage: "music.note.list")
-                        }
-
-                        Divider()
-
-                        #if os(iOS)
-                        SleepTimerMenu(player: player)
-
-                        Divider()
-                        #endif
-
-                        Button {
-                            Platform.copyToPasteboard(
-                                string: Upstream.songPageURL(id: track.id)?.absoluteString ?? ""
-                            )
-                            ToastCenter.shared.show(String(localized: "链接已复制"))
-                        } label: {
-                            Label("复制链接", systemImage: "link")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 21, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.88))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
+                        .buttonStyle(.pressable)
+                        .accessibilityLabel("更多操作")
+                        .accessibilityIdentifier("immersiveMoreMenu")
                     }
-                    .buttonStyle(.pressable)
-                    .accessibilityLabel("更多操作")
-                    .accessibilityIdentifier("immersiveMoreMenu")
                 }
             }
         }
@@ -2585,7 +2631,7 @@ private struct MinimalTrackInfoRow: View {
                 metadata(alignment: .center, textAlignment: .center)
                     .padding(.horizontal, 48)
             } else if actionsOnly {
-                if let track = player.currentTrack {
+                if let track = player.currentTrack, track.supportsSongActions {
                     HStack {
                         favoriteButton(for: track)
                         Spacer()
@@ -2603,7 +2649,7 @@ private struct MinimalTrackInfoRow: View {
                     metadata(alignment: .leading, textAlignment: .leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if let track = player.currentTrack {
+                    if let track = player.currentTrack, track.supportsSongActions {
                         favoriteButton(for: track)
                         SoundEffectsButton(
                             action: onOpenSoundEffects,

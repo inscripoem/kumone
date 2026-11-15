@@ -53,9 +53,39 @@ struct LyricsPanel: View {
         .padding(.vertical, 14)
     }
 
+    /// A podcast episode's side panel: the show notes where a song has lyrics.
+    private var podcastNotes: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 12) {
+                Color.clear.frame(height: 120)
+                if let metadata = player.currentTrack?.podcastMetadata {
+                    Text("节目简介")
+                        .font(.headline)
+                    Text(metadata.radioName)
+                        .font(.system(size: 13, weight: .semibold))
+                    if let notes = metadata.programDescription, !notes.isEmpty {
+                        Text(notes)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(5)
+                            .textSelection(.enabled)
+                    } else {
+                        Text("本期节目没有文字简介")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    Color.clear.frame(height: 160)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
-        if let lyrics = player.lyrics, !lyrics.isEmpty {
+        if player.currentTrack?.isPodcastProgram == true {
+            podcastNotes
+        } else if let lyrics = player.lyrics, !lyrics.isEmpty {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     LazyVStack(alignment: .leading, spacing: 18) {
@@ -267,7 +297,9 @@ private struct QueueRow: View {
             .buttonStyle(.plain)
 
             #if os(macOS)
-            TrackDownloadButton(track: track, isVisible: isHovering)
+            if track.supportsSongActions {
+                TrackDownloadButton(track: track, isVisible: isHovering)
+            }
             #endif
 
             ZStack {

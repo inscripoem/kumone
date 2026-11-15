@@ -1279,6 +1279,8 @@ final class PlayerService: ObservableObject {
     }
 
     private func loadLyrics(for track: Track, generation: Int) async {
+        // Episodes have no lyrics; the show notes render in their place.
+        guard !track.isPodcastProgram else { return }
         let scope = offlineAccountScope
         if let scope, let saved = await OfflineMetadataStore.shared.lyrics(trackID: track.id, scope: scope) {
             guard generation == resolveGeneration else { return }
@@ -1516,6 +1518,8 @@ final class PlayerService: ObservableObject {
     private func scrobbleStartIfNeeded() {
         guard let track = currentTrack, !startScrobbled else { return }
         startScrobbled = true
+        // Podcast listening is not song play history; skip the weblog.
+        guard !track.isPodcastProgram else { return }
         let trackID = track.id
         let sourceID = source.sourceID
         Task.detached {
@@ -1524,7 +1528,8 @@ final class PlayerService: ObservableObject {
     }
 
     private func scrobbleIfNeeded(completed: Bool) {
-        guard let track = currentTrack, !scrobbled, progress > 1 else { return }
+        guard let track = currentTrack, !scrobbled, progress > 1,
+              !track.isPodcastProgram else { return }
         scrobbled = true
         let seconds = completed ? Int(duration) : Int(progress)
         let sourceID = source.sourceID
