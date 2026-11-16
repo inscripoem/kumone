@@ -314,7 +314,10 @@ final class ShortcutManager: ObservableObject {
                     await AccountStore.shared.toggleLike(trackID: track.id)
                 }
             case .toggleLyrics:
-                player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
+                // Episodes have no lyrics panel to open.
+                if player.currentTrack?.isPodcastProgram != true {
+                    player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
+                }
             case .toggleQueue:
                 player.activePanel = player.activePanel == .queue ? nil : .queue
             case .closeImmersive:

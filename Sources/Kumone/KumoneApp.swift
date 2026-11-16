@@ -75,10 +75,12 @@ public struct KumoneApp: App {
                 .keyboardShortcut(shortcuts.shortcut(for: .toggleLike, isGlobal: false).keyboardShortcut)
                 .disabled(!player.hasCurrentTrack || player.currentTrack?.isPodcastProgram == true)
 
-                Button("歌词") {
-                    player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
+                if player.currentTrack?.isPodcastProgram != true {
+                    Button("歌词") {
+                        player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
+                    }
+                    .keyboardShortcut(shortcuts.shortcut(for: .toggleLyrics, isGlobal: false).keyboardShortcut)
                 }
-                .keyboardShortcut(shortcuts.shortcut(for: .toggleLyrics, isGlobal: false).keyboardShortcut)
 
                 Button("播放队列") {
                     player.activePanel = player.activePanel == .queue ? nil : .queue

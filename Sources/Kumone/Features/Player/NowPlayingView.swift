@@ -23,8 +23,16 @@ struct NowPlayingView: View {
     #endif
     @State private var activeIndex: Int?
     @State private var isUserScrolling = false
-    @State private var showLyricsOnMobile = false
+    @State private var wantsLyricsOnMobile = false
     @State private var showQueueOnMobile = false
+
+    /// Lyrics are a song-only surface: an episode has no time-synced text, so
+    /// the mobile page stays on artwork or queue while a podcast plays. The
+    /// preference is remembered for the next song.
+    private var showLyricsOnMobile: Bool {
+        get { wantsLyricsOnMobile && player.currentTrack?.isPodcastProgram != true }
+        nonmutating set { wantsLyricsOnMobile = newValue }
+    }
     /// Lyrics or comments in the regular page's right column (macOS, iPad).
     @State private var regularColumnPage = RegularColumnPage.lyrics
     #if os(iOS)
@@ -94,18 +102,20 @@ struct NowPlayingView: View {
                         )
                         #endif
 
-                        Button {
-                            withAnimation(AppAnimation.standard) {
-                                showLyricsOnMobile.toggle()
+                        if player.currentTrack?.isPodcastProgram != true {
+                            Button {
+                                withAnimation(AppAnimation.standard) {
+                                    showLyricsOnMobile = !showLyricsOnMobile
+                                }
+                            } label: {
+                                Image(systemName: showLyricsOnMobile ? "music.note" : "quote.bubble")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(showLyricsOnMobile ? Theme.accent : .white.opacity(0.85))
+                                    .frame(width: 36, height: 36)
+                                    .background(.white.opacity(0.12), in: Circle())
                             }
-                        } label: {
-                            Image(systemName: showLyricsOnMobile ? "music.note" : "quote.bubble")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(showLyricsOnMobile ? Theme.accent : .white.opacity(0.85))
-                                .frame(width: 36, height: 36)
-                                .background(.white.opacity(0.12), in: Circle())
+                            .buttonStyle(.pressable)
                         }
-                        .buttonStyle(.pressable)
                     }
                     .padding(.top, 20)
                     .padding(.trailing, 20)
@@ -168,7 +178,6 @@ struct NowPlayingView: View {
     }
 
     private var hasLyricsColumn: Bool {
-        if player.currentTrack?.isPodcastProgram == true { return true }
         if let lyrics = player.lyrics, !lyrics.isEmpty { return true }
         return player.lyrics == nil // still loading — keep layout stable
     }
@@ -866,7 +875,7 @@ struct NowPlayingView: View {
                 showQueueOnMobile = false
                 showLyricsOnMobile = true
             } else {
-                showLyricsOnMobile.toggle()
+                showLyricsOnMobile = !showLyricsOnMobile
             }
         }
     }
@@ -987,7 +996,7 @@ struct NowPlayingView: View {
 
     private func toggleMinimalLyrics() {
         guard showLyricsOnMobile || player.lyrics?.isEmpty == false else { return }
-        showLyricsOnMobile.toggle()
+        showLyricsOnMobile = !showLyricsOnMobile
     }
 
     private var minimalDismissGesture: some Gesture {
@@ -1349,44 +1358,6 @@ struct NowPlayingView: View {
     /// landscape immersive page. Insets are the space parked above and below
     /// the lines so the active one can sit mid-viewport; the short landscape
     /// page needs them much smaller than a full-height window does.
-    /// A podcast episode's place: the show, the host and the show notes,
-    /// where a song would have its lyrics.
-    private func podcastNotesScroll(
-        topInset: CGFloat,
-        bottomInset: CGFloat,
-        horizontalPadding: CGFloat
-    ) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                Color.clear.frame(height: topInset)
-                if let metadata = player.currentTrack?.podcastMetadata {
-                    Text(metadata.radioName)
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                    if !metadata.hostName.isEmpty {
-                        Text(metadata.hostName)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
-                    if let notes = metadata.programDescription, !notes.isEmpty {
-                        Text(notes)
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .lineSpacing(6)
-                            .textSelection(.enabled)
-                    } else {
-                        Text("本期节目没有文字简介")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-                }
-                Color.clear.frame(height: bottomInset)
-            }
-            .padding(.horizontal, horizontalPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
     @ViewBuilder
     private func lyricsScroll(
         topInset: CGFloat,
@@ -1394,10 +1365,7 @@ struct NowPlayingView: View {
         horizontalPadding: CGFloat,
         karaoke: Bool = false
     ) -> some View {
-        if player.currentTrack?.isPodcastProgram == true {
-            podcastNotesScroll(topInset: topInset, bottomInset: bottomInset,
-                               horizontalPadding: horizontalPadding)
-        } else if let lyrics = player.lyrics, !lyrics.isEmpty {
+        if let lyrics = player.lyrics, !lyrics.isEmpty {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     LazyVStack(alignment: karaoke ? .center : .leading,
@@ -2059,11 +2027,13 @@ private struct CompactSecondaryControls: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            secondaryButton(
-                icon: showsLyrics && !showsQueue ? "quote.bubble.fill" : "quote.bubble",
-                label: showsLyrics ? "显示封面" : "显示歌词",
-                isActive: showsLyrics && !showsQueue
-            ) { onToggleLyrics() }
+            if player.currentTrack?.isPodcastProgram != true {
+                secondaryButton(
+                    icon: showsLyrics && !showsQueue ? "quote.bubble.fill" : "quote.bubble",
+                    label: showsLyrics ? "显示封面" : "显示歌词",
+                    isActive: showsLyrics && !showsQueue
+                ) { onToggleLyrics() }
+            }
 
             RoutePickerButton(diameter: 44, glyphSize: 17)
                 .frame(maxWidth: .infinity)

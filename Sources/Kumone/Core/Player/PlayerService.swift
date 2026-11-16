@@ -1020,6 +1020,8 @@ final class PlayerService: ObservableObject {
 
         scrobbleIfNeeded(completed: false)
         currentTrack = track
+        // Episodes have no lyrics: never leave the lyrics panel open over one.
+        if track.isPodcastProgram, activePanel == .lyrics { activePanel = nil }
         playbackAccountID = AccountStore.shared.profile?.userId
         progress = resumeAt
         duration = track.duration

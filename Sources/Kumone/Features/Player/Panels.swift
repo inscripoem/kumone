@@ -29,7 +29,7 @@ struct LyricsPanel: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(headerTitle)
+                Text("歌词")
                     .font(.headline)
                 if let contributor = player.lyrics?.contributor {
                     Text("贡献者：\(contributor)")
@@ -53,48 +53,9 @@ struct LyricsPanel: View {
         .padding(.vertical, 14)
     }
 
-    /// The panel is the lyrics panel for songs and the show-notes panel for
-    /// episodes; the title has to say which one is on screen.
-    private var headerTitle: LocalizedStringKey {
-        player.currentTrack?.isPodcastProgram == true ? "节目简介" : "歌词"
-    }
-
-    /// A podcast episode's side panel: the show notes where a song has lyrics.
-    private var podcastNotes: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 12) {
-                Color.clear.frame(height: 120)
-                if let metadata = player.currentTrack?.podcastMetadata {
-                    Text(metadata.radioName)
-                        .font(.headline)
-                    if !metadata.hostName.isEmpty {
-                        Text(metadata.hostName)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
-                    if let notes = metadata.programDescription, !notes.isEmpty {
-                        Text(notes)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                            .lineSpacing(5)
-                            .textSelection(.enabled)
-                    } else {
-                        Text("本期节目没有文字简介")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                    Color.clear.frame(height: 160)
-                }
-            }
-            .padding(.horizontal, 20)
-        }
-    }
-
     @ViewBuilder
     private var content: some View {
-        if player.currentTrack?.isPodcastProgram == true {
-            podcastNotes
-        } else if let lyrics = player.lyrics, !lyrics.isEmpty {
+        if let lyrics = player.lyrics, !lyrics.isEmpty {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     LazyVStack(alignment: .leading, spacing: 18) {

@@ -214,13 +214,15 @@ struct PlayerBar: View {
                     .padding(.trailing, 2)
                     .help("来自 \(player.unblockSource ?? "")")
             }
-            PlayerIconButton(
-                icon: "quote.bubble", size: 13,
-                isActive: player.activePanel == .lyrics
-            ) {
-                player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
+            if player.currentTrack?.isPodcastProgram != true {
+                PlayerIconButton(
+                    icon: "quote.bubble", size: 13,
+                    isActive: player.activePanel == .lyrics
+                ) {
+                    player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
+                }
+                .help("歌词")
             }
-            .help("歌词")
             PlayerIconButton(
                 icon: "inset.filled.bottomthird.square", size: 13,
                 isActive: settings.showDesktopLyrics
