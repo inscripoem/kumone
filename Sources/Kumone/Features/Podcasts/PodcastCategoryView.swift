@@ -32,7 +32,7 @@ struct PodcastCategoryView: View {
                     } else if hasMore {
                         Color.clear
                             .frame(height: 1)
-                            .onAppear { Task { await loadMore() } }
+                            .task(id: podcasts.count) { await loadMore() }
                     }
                 }
                 PlayerClearanceSpacer()
@@ -86,6 +86,7 @@ struct PodcastCategoryView: View {
     private func loadMore() async {
         guard !isLoadingMore, hasMore else { return }
         isLoadingMore = true
+        defer { isLoadingMore = false }
         await load(reset: false)
     }
 }

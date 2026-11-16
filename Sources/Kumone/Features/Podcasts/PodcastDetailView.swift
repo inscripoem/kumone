@@ -264,7 +264,9 @@ struct PodcastDetailView: View {
                         .frame(minHeight: 200)
                 }
             } else {
-                VStack(spacing: 0) {
+                // Lazy, so the footer is only created near the viewport: the
+                // pagination trigger cannot race ahead and fetch every page.
+                LazyVStack(spacing: 0) {
                     ForEach(Array(programs.enumerated()), id: \.element.id) { _, program in
                         PodcastProgramRow(
                             program: program,
@@ -304,7 +306,10 @@ struct PodcastDetailView: View {
                 } else if hasMore {
                     Color.clear
                         .frame(height: 1)
-                        .onAppear { Task { await loadMore() } }
+                        // Re-run when a page lands: a footer that stays on
+                        // screen after the append would never fire onAppear
+                        // again, leaving the list short of a full viewport.
+                        .task(id: programs.count) { await loadMore() }
                 }
             }
         }
@@ -334,6 +339,7 @@ struct PodcastDetailView: View {
     private func loadMore() async {
         guard !isLoadingMore, hasMore else { return }
         isLoadingMore = true
+        defer { isLoadingMore = false }
         await loadPrograms(reset: false)
     }
 

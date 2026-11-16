@@ -58,6 +58,8 @@ struct PodcastProgramRow: View {
     let onPlay: () -> Void
     let onOpenDetail: () -> Void
 
+    @State private var isHovering = false
+
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 12) {
@@ -121,6 +123,14 @@ struct PodcastProgramRow: View {
             .help("节目详情")
         }
         .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.standard, style: .continuous)
+                .fill(isHovering ? Color.primary.opacity(0.06) : .clear)
+        )
+        .contentShape(Rectangle())
+        #if os(macOS)
+        .onHover { isHovering = $0 }
+        #endif
     }
 }
 
