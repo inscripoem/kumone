@@ -22,17 +22,33 @@ struct PodcastCategoryView: View {
                         .buttonStyle(.plain)
                     }
 
-                    if isLoadingMore {
-                        HStack {
-                            Spacer()
-                            ProgressView().controlSize(.small)
-                            Spacer()
+                    if hasMore || isLoadingMore || errorMessage != nil {
+                        VStack(spacing: 6) {
+                            if isLoadingMore {
+                                ProgressView().controlSize(.small)
+                            } else if let errorMessage {
+                                HStack(spacing: 8) {
+                                    Text(errorMessage)
+                                        .font(.system(size: 11.5))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                    Button("重试") {
+                                        Task {
+                                            hasMore = true
+                                            await loadMore()
+                                        }
+                                    }
+                                    .font(.system(size: 11.5))
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(Theme.accent)
+                                }
+                            } else {
+                                Color.clear.frame(height: 1)
+                            }
                         }
-                        .padding(.vertical, 16)
-                    } else if hasMore {
-                        Color.clear
-                            .frame(height: 1)
-                            .task(id: podcasts.count) { await loadMore() }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, isLoadingMore || errorMessage != nil ? 16 : 0)
+                        .task(id: podcasts.count) { await loadMore() }
                     }
                 }
                 PlayerClearanceSpacer()
@@ -75,6 +91,10 @@ struct PodcastCategoryView: View {
             var known = Set(podcasts.map(\.id))
             podcasts += page.podcasts.filter { known.insert($0.id).inserted }
             hasMore = page.hasMore
+        } catch is CancellationError {
+            isLoading = false
+            isLoadingMore = false
+            return
         } catch {
             if podcasts.isEmpty { errorMessage = error.localizedDescription }
             hasMore = false

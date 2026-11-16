@@ -87,6 +87,9 @@ struct PodcastDetailView: View {
         do {
             podcast = try await MusicAPI.podcast(id: podcastID)
             await loadPrograms(reset: true)
+        } catch is CancellationError {
+            isLoading = false
+            return
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -113,6 +116,9 @@ struct PodcastDetailView: View {
             programs += page.programs.filter { known.insert($0.id).inserted }
             totalCount = max(page.totalCount, podcast?.programCount ?? 0, programs.count)
             hasMore = page.hasMore
+        } catch is CancellationError {
+            // The footer scrolled away or a newer sort took over; not an error.
+            return
         } catch {
             guard generation == programGeneration else { return }
             programsError = error.localizedDescription
@@ -264,8 +270,9 @@ struct PodcastDetailView: View {
                         .frame(minHeight: 200)
                 }
             } else {
-                // Lazy, so the footer is only created near the viewport: the
-                // pagination trigger cannot race ahead and fetch every page.
+                // Lazy, so the footer (and its pagination trigger) is only
+                // created near the viewport: a long show cannot fetch every
+                // page ahead of the listener.
                 LazyVStack(spacing: 0) {
                     ForEach(Array(programs.enumerated()), id: \.element.id) { index, program in
                         PodcastProgramRow(
@@ -277,41 +284,42 @@ struct PodcastDetailView: View {
                             onOpenDetail: { openDestination(.podcastProgram(program.id)) }
                         )
                     }
-                }
-                .padding(.horizontal, isCompact ? 10 : Theme.Layout.contentInset - 10)
 
-                if isLoadingMore {
-                    HStack {
-                        Spacer()
-                        ProgressView().controlSize(.small)
-                        Spacer()
-                    }
-                    .padding(.vertical, 12)
-                } else if let programsError {
-                    HStack(spacing: 8) {
-                        Text(programsError)
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                        Button("重试") {
-                            Task {
-                                hasMore = true
-                                await loadMore()
+                    // One stable footer: the trigger must not live on a view
+                    // that the spinner replaces, or SwiftUI cancels the
+                    // in-flight page and the UI reports a CancellationError.
+                    if hasMore || isLoadingMore || programsError != nil {
+                        VStack(spacing: 6) {
+                            if isLoadingMore {
+                                ProgressView().controlSize(.small)
+                            } else if let programsError {
+                                HStack(spacing: 8) {
+                                    Text(programsError)
+                                        .font(.system(size: 11.5))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                    Button("重试") {
+                                        Task {
+                                            hasMore = true
+                                            await loadMore()
+                                        }
+                                    }
+                                    .font(.system(size: 11.5))
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(Theme.accent)
+                                }
+                            } else {
+                                Color.clear.frame(height: 1)
                             }
                         }
-                        .font(.system(size: 11.5))
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Theme.accent)
-                    }
-                    .padding(.vertical, 12)
-                } else if hasMore {
-                    Color.clear
-                        .frame(height: 1)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, isLoadingMore || programsError != nil ? 12 : 0)
                         // Re-run when a page lands: a footer that stays on
-                        // screen after the append would never fire onAppear
-                        // again, leaving the list short of a full viewport.
+                        // screen after the append would never fire onAppear.
                         .task(id: programs.count) { await loadMore() }
+                    }
                 }
+                .padding(.horizontal, isCompact ? 10 : Theme.Layout.contentInset - 10)
             }
         }
     }

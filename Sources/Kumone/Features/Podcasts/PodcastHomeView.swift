@@ -43,6 +43,8 @@ final class PodcastHomeModel: ObservableObject {
             state = recommended.isEmpty && categories.isEmpty
                 ? .error(String(localized: "网络连接失败"))
                 : .loaded
+        } catch is CancellationError {
+            return
         } catch {
             state = .error(error.localizedDescription)
         }

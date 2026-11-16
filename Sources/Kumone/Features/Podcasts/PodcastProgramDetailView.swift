@@ -95,6 +95,9 @@ struct PodcastProgramDetailView: View {
         errorMessage = nil
         do {
             program = try await MusicAPI.podcastProgramDetail(id: programID)
+        } catch is CancellationError {
+            isLoading = false
+            return
         } catch {
             errorMessage = error.localizedDescription
         }
