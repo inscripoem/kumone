@@ -1090,7 +1090,9 @@ final class PlayerService: ObservableObject {
         }
         // The service refused — try third-party sources (unblock-style).
         // #104 made the source list configurable; resolve through the enabled
-        // sources (single-shot here, so nothing is excluded).
+        // sources (single-shot here, so nothing is excluded). Episodes reach
+        // this branch under the same rule as songs: only when the official
+        // program URL was refused and the listener enabled third-party audio.
         if url == nil || data?.freeTrialInfo != nil, SettingsManager.shared.enableUnblock {
             let resolution = await UnblockService.resolve(
                 track,
