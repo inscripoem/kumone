@@ -329,6 +329,8 @@ final class MusicClient: @unchecked Sendable {
            let code = obj["code"] as? Int, code != 200 {
             if code == 301 { throw MusicAPIError.needLogin }
             let message = (obj["message"] as? String) ?? (obj["msg"] as? String)
+            let loggedMessage = message ?? "nil"
+            Self.log.error("API business error code=\(code) message=\(loggedMessage, privacy: .public)")
             throw MusicAPIError.business(code: code, message: message)
         }
         do {

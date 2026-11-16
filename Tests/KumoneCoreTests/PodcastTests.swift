@@ -144,6 +144,22 @@ struct PodcastTests {
                 ["/api/djradio/recommend/v1", "/eapi/djradio/recommend/v1"])
     }
 
+    @Test func frequencyAnswerIsNotRetried() async throws {
+        reset { _ in (200, #"{"code":-447,"message":"操作频繁，请稍后再试"}"#) }
+
+        do {
+            _ = try await MusicAPI.recommendedPodcasts(using: client())
+            Issue.record("expected a business error")
+        } catch let error as MusicAPIError {
+            guard case .business(let code, _) = error, code == -447 else {
+                Issue.record("expected .business(-447), got \(error)")
+                return
+            }
+        }
+        // Asking again immediately would only extend the cooldown.
+        #expect(PodcastProtocol.requests.map(\.path) == ["/api/djradio/recommend/v1"])
+    }
+
     // MARK: - Decoding
 
     @Test func podcastDecodesRecommendationCopyAndHost() async throws {

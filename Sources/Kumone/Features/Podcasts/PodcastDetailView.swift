@@ -13,6 +13,8 @@ struct PodcastDetailView: View {
     @State private var errorMessage: String?
     @State private var programsError: String?
     @State private var order: PodcastProgramOrder = .newest
+    @State private var orderReloadTask: Task<Void, Never>?
+    @State private var programGeneration = 0
     @State private var isSubscribing = false
     @State private var isDescriptionExpanded = false
 
@@ -63,7 +65,17 @@ struct PodcastDetailView: View {
             await load()
         }
         .onChange(of: order) { _ in
-            Task { await loadPrograms(reset: true) }
+            // Debounce: flipping newest/oldest quickly must not fire a burst
+            // of episode requests at the service's frequency control.
+            orderReloadTask?.cancel()
+            orderReloadTask = Task {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                guard !Task.isCancelled else { return }
+                await loadPrograms(reset: true)
+            }
+        }
+        .onDisappear {
+            orderReloadTask?.cancel()
         }
     }
 
@@ -82,21 +94,27 @@ struct PodcastDetailView: View {
     }
 
     private func loadPrograms(reset: Bool) async {
+        if reset { programGeneration += 1 }
+        let generation = programGeneration
         programsError = nil
         if reset {
             programs = []
             isLoadingPrograms = true
         }
-        defer { if reset { isLoadingPrograms = false } }
+        defer {
+            if reset, generation == programGeneration { isLoadingPrograms = false }
+        }
         do {
             let offset = reset ? 0 : programs.count
             let page = try await MusicAPI.podcastPrograms(
                 radioID: podcastID, offset: offset, ascending: order.ascending)
+            guard generation == programGeneration else { return }
             var known = Set(programs.map(\.id))
             programs += page.programs.filter { known.insert($0.id).inserted }
             totalCount = max(page.totalCount, podcast?.programCount ?? 0, programs.count)
             hasMore = page.hasMore
         } catch {
+            guard generation == programGeneration else { return }
             programsError = error.localizedDescription
             hasMore = false
         }

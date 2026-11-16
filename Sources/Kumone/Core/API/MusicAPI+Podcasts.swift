@@ -3,6 +3,23 @@ import Foundation
 extension MusicAPI {
     // MARK: - Transport
 
+    /// Spaces podcast requests so a burst of page/sort changes cannot trip the
+    /// service's frequency control. Cheap enough to be invisible: the home
+    /// page's two concurrent fetches simply serialise.
+    private actor PodcastRequestGate {
+        static let shared = PodcastRequestGate()
+        private var lastRequest = Date.distantPast
+
+        func wait() async {
+            let elapsed = Date().timeIntervalSince(lastRequest)
+            let minimum: TimeInterval = 0.3
+            if elapsed < minimum {
+                try? await Task.sleep(nanoseconds: UInt64((minimum - elapsed) * 1_000_000_000))
+            }
+            lastRequest = Date()
+        }
+    }
+
     /// Plain web API first: the podcast route family answers it, and no weapi
     /// crypto is needed. On a transport-level failure the same route and
     /// parameters are retried once through the eapi. Business answers (login,
@@ -11,6 +28,7 @@ extension MusicAPI {
         _ type: Response.Type, _ path: String, _ form: [String: String] = [:],
         using client: MusicClient = .shared
     ) async throws -> Response {
+        await PodcastRequestGate.shared.wait()
         do {
             let data = try await client.api(path, podcastForm(form, client: client))
             return try client.decoded(Response.self, from: data)
@@ -45,7 +63,13 @@ extension MusicAPI {
         // are the service having a bad moment. A login answer (301/mapped to
         // .needLogin) or a real 4xx is the caller's business, not a transport
         // problem, and is not retried.
-        case .business(let code, _): return code < 0 || code >= 500
+        //
+        // Frequency control is the exception: "操作频繁，请稍后再试" means the
+        // account is already being told to slow down, and a second request
+        // makes the wait longer rather than shorter.
+        case .business(let code, let message):
+            if let message, message.contains("频繁") { return false }
+            return code < 0 || code >= 500
         case .needLogin, .notConfigured: return false
         }
     }
