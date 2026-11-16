@@ -47,12 +47,12 @@ struct PodcastListRow: View {
 
 // MARK: - Program row
 
-/// One episode row: artwork, title, publish date / duration / play count.
-/// The row itself is the play surface — double-click on macOS, single tap on
-/// iOS — and the info button is the way into the episode page, so playing an
-/// episode never requires finding a small button first.
+/// One episode row. It follows the song row's contract: no permanently
+/// visible play button, hover reveals the actions, double-click (macOS) or a
+/// tap (iOS) plays, and the context menu reaches the episode page.
 struct PodcastProgramRow: View {
     let program: PodcastProgram
+    let index: Int
     let isCurrent: Bool
     let isPlaying: Bool
     let onPlay: () -> Void
@@ -62,75 +62,94 @@ struct PodcastProgramRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 12) {
-                CachedAsyncImage(url: program.artworkURL)
-                    .frame(width: 56, height: 56)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(program.name)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(isCurrent ? Theme.accent : .primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    HStack(spacing: 8) {
-                        if let createTime = program.createTime {
-                            Text(Formatters.date(fromMS: Int(createTime)))
-                        }
-                        if program.durationMS > 0 {
-                            Text(Formatters.duration(TimeInterval(program.durationMS) / 1000))
-                        }
-                        if program.listenerCount > 0 {
-                            Text("\(Formatters.playCount(program.listenerCount)) 次播放")
-                        }
-                    }
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+            leadingIndicator
+
+            CachedAsyncImage(url: program.artworkURL)
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(program.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(isCurrent ? Theme.accent : .primary)
                     .lineLimit(1)
+                HStack(spacing: 8) {
+                    if let createTime = program.createTime {
+                        Text(Formatters.date(fromMS: Int(createTime)))
+                    }
+                    if program.durationMS > 0 {
+                        Text(Formatters.duration(TimeInterval(program.durationMS) / 1000))
+                    }
+                    if program.listenerCount > 0 {
+                        Text("\(Formatters.playCount(program.listenerCount)) 次播放")
+                    }
                 }
-                Spacer(minLength: 0)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
             }
-            .contentShape(Rectangle())
-            #if os(macOS)
-            .onTapGesture(count: 2, perform: onPlay)
-            .help("双击播放")
-            #else
-            .onTapGesture(perform: onPlay)
-            #endif
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityLabel("播放节目：\(program.name)")
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button(action: onPlay) {
-                Image(systemName: isCurrent && isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(isCurrent ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.secondary))
-                    .frame(width: 32, height: 40)
-                    .contentShape(Rectangle())
+            if isHovering {
+                Button(action: onOpenDetail) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("节目详情")
+                .help("节目详情")
             }
-            .buttonStyle(.pressable)
-            .disabled(program.playbackTrack == nil)
-            .accessibilityLabel(isCurrent && isPlaying ? "暂停" : "播放")
 
-            Button(action: onOpenDetail) {
-                Image(systemName: "info.circle")
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 30, height: 40)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.pressable)
-            .accessibilityLabel("节目详情")
-            .help("节目详情")
+            Text(Formatters.duration(TimeInterval(program.durationMS) / 1000))
+                .font(.system(size: 11.5).monospacedDigit())
+                .foregroundStyle(.tertiary)
+                .frame(width: 40, alignment: .trailing)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .frame(height: 60)
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.standard, style: .continuous)
                 .fill(isHovering ? Color.primary.opacity(0.06) : .clear)
         )
         .contentShape(Rectangle())
-        #if os(macOS)
         .onHover { isHovering = $0 }
+        #if os(macOS)
+        .onTapGesture(count: 2, perform: onPlay)
+        .help("双击播放")
+        #else
+        .onTapGesture(perform: onPlay)
         #endif
+        .contextMenu {
+            Button("播放", action: onPlay)
+            Button("节目详情", action: onOpenDetail)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("播放节目：\(program.name)")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    @ViewBuilder
+    private var leadingIndicator: some View {
+        ZStack {
+            if isCurrent {
+                PlayingIndicator(animating: isPlaying)
+            } else if isHovering {
+                Button(action: onPlay) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("播放")
+            } else {
+                Text(String(program.serialNum ?? (index + 1)))
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(width: 28)
     }
 }
 

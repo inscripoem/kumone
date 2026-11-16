@@ -267,9 +267,10 @@ struct PodcastDetailView: View {
                 // Lazy, so the footer is only created near the viewport: the
                 // pagination trigger cannot race ahead and fetch every page.
                 LazyVStack(spacing: 0) {
-                    ForEach(Array(programs.enumerated()), id: \.element.id) { _, program in
+                    ForEach(Array(programs.enumerated()), id: \.element.id) { index, program in
                         PodcastProgramRow(
                             program: program,
+                            index: index,
                             isCurrent: player.currentTrack?.podcastMetadata?.programID == program.id,
                             isPlaying: player.isPlaying,
                             onPlay: { play(program) },
