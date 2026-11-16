@@ -277,6 +277,21 @@ struct PodcastTests {
         #expect(legacy.podcastMetadata == nil && !legacy.isPodcastProgram)
     }
 
+    @Test func podcastEpisodesNeverUseThirdPartySources() async {
+        let metadata = PodcastPlaybackMetadata(
+            programID: 1, radioID: 2, radioName: "show", coverURLString: nil,
+            hostName: "host", programDescription: nil)
+        let episode = Track(id: 3, name: "episode", podcastMetadata: metadata)
+
+        let resolution = await UnblockService.resolve(
+            episode,
+            enabledSources: [.pyncmd, .kugou, .kuwo],
+            excluding: [])
+
+        #expect(resolution.source == nil)
+        #expect(resolution.attemptedSources.isEmpty)
+    }
+
     // MARK: - Subscription
 
     @Test func subscribeWriteCarriesIDAndCSRF() async throws {

@@ -21,6 +21,12 @@ enum UnblockService {
         enabledSources: Set<AudioSourceID>,
         excluding attemptedSources: Set<AudioSourceID>
     ) async -> Resolution {
+        // Podcast episodes are not songs: their audio must come from the
+        // official program URL. A song-ID lookup at a third-party source can
+        // return a different recording (and leaks the episode ID).
+        guard !track.isPodcastProgram else {
+            return Resolution(source: nil, attemptedSources: [])
+        }
         var newlyAttemptedSources = Set<AudioSourceID>()
         guard !Task.isCancelled else { return Resolution(source: nil, attemptedSources: []) }
         if enabledSources.contains(.pyncmd), !attemptedSources.contains(.pyncmd) {
