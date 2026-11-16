@@ -11,14 +11,14 @@ extension MusicAPI {
         _ type: Response.Type, _ path: String, _ form: [String: String] = [:],
         using client: MusicClient = .shared
     ) async throws -> Response {
-        let data: Data
         do {
-            data = try await client.api(path, podcastForm(form, client: client))
+            let data = try await client.api(path, podcastForm(form, client: client))
+            return try client.decoded(Response.self, from: data)
         } catch {
             guard isRetryableFailure(error) else { throw error }
-            data = try await client.eapi(path, anyForm(podcastForm(form, client: client)))
+            let data = try await client.eapi(path, anyForm(podcastForm(form, client: client)))
+            return try client.decoded(Response.self, from: data)
         }
-        return try client.decoded(Response.self, from: data)
     }
 
     /// The web client carries its CSRF token on every podcast call, reads
