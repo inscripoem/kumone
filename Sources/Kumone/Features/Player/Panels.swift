@@ -29,7 +29,7 @@ struct LyricsPanel: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("歌词")
+                Text(headerTitle)
                     .font(.headline)
                 if let contributor = player.lyrics?.contributor {
                     Text("贡献者：\(contributor)")
@@ -53,16 +53,25 @@ struct LyricsPanel: View {
         .padding(.vertical, 14)
     }
 
+    /// The panel is the lyrics panel for songs and the show-notes panel for
+    /// episodes; the title has to say which one is on screen.
+    private var headerTitle: LocalizedStringKey {
+        player.currentTrack?.isPodcastProgram == true ? "节目简介" : "歌词"
+    }
+
     /// A podcast episode's side panel: the show notes where a song has lyrics.
     private var podcastNotes: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
                 Color.clear.frame(height: 120)
                 if let metadata = player.currentTrack?.podcastMetadata {
-                    Text("节目简介")
-                        .font(.headline)
                     Text(metadata.radioName)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.headline)
+                    if !metadata.hostName.isEmpty {
+                        Text(metadata.hostName)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
                     if let notes = metadata.programDescription, !notes.isEmpty {
                         Text(notes)
                             .font(.system(size: 13))
