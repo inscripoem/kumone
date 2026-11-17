@@ -15,7 +15,7 @@ jobs:
   # The fork's macOS runners have been recycling jobs at the 15-minute mark,
   # so the expensive work is split into two shorter jobs. Tests gate the app.
   macos-test:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
 
   macos-app:
     needs: macos-test
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
