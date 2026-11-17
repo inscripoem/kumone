@@ -12,7 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  macos:
+  # The fork's macOS runners have been recycling jobs at the 15-minute mark,
+  # so the expensive work is split into two shorter jobs. Tests gate the app.
+  macos-test:
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -24,10 +26,17 @@ jobs:
       - name: Test
         run: swift test
 
-      - name: Build app (universal, unsigned)
+  macos-app:
+    needs: macos-test
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build app (host architecture, unsigned)
         run: |
           MARKETING_VERSION="0.0.0" BUILD_NUMBER="1" \
-            ARCHES="arm64 x86_64" FETCH_MLX_METALLIB=1 \
+            FETCH_MLX_METALLIB=1 \
             Scripts/build-app.sh release
 
       - name: Zip macOS app
