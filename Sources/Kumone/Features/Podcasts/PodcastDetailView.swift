@@ -365,11 +365,13 @@ struct PodcastDetailView: View {
             if programs.isEmpty, errorMessage == nil {
                 await loadPrograms(reset: true)
             }
-            guard let track = programs.first?.playbackTrack else {
+            // Same queue a row tap builds: the loaded page, not one episode.
+            let tracks = programs.compactMap(\.playbackTrack)
+            guard let first = tracks.first else {
                 ToastCenter.shared.show(String(localized: "暂无可播放的节目"))
                 return
             }
-            player.play(tracks: [track], source: .none)
+            player.play(tracks: tracks, source: .none, startAt: first)
         }
     }
 

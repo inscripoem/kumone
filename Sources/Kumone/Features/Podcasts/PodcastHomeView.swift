@@ -158,16 +158,18 @@ struct PodcastHomeView: View {
         .staggeredAppearance(index: index, id: "\(key)-\(podcast.id)")
     }
 
-    /// Play a show's latest episode.
+    /// Play a show's latest episode, queueing the page it came from so the
+    /// queue matches the one a row tap inside the show would build.
     private func playShow(_ podcast: Podcast) {
         Task {
             do {
-                let page = try await MusicAPI.podcastPrograms(radioID: podcast.id, limit: 1)
-                guard let track = page.programs.first?.playbackTrack else {
+                let page = try await MusicAPI.podcastPrograms(radioID: podcast.id, limit: 50)
+                let tracks = page.programs.compactMap(\.playbackTrack)
+                guard let first = tracks.first else {
                     ToastCenter.shared.show(String(localized: "暂无可播放的节目"))
                     return
                 }
-                player.play(tracks: [track], source: .none)
+                player.play(tracks: tracks, source: .none, startAt: first)
             } catch {
                 ToastCenter.shared.show(error.localizedDescription)
             }
