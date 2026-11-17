@@ -26,7 +26,8 @@ jobs:
 
       - name: Build app (universal, unsigned)
         run: |
-          ARCHES="arm64 x86_64" FETCH_MLX_METALLIB=1 \
+          MARKETING_VERSION="0.0.0" BUILD_NUMBER="1" \
+            ARCHES="arm64 x86_64" FETCH_MLX_METALLIB=1 \
             Scripts/build-app.sh release
 
       - name: Zip macOS app
