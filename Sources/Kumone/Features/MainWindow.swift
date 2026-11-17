@@ -46,6 +46,12 @@ struct MainWindow: View {
         externalPath ?? $localPath
     }
 
+    /// Desktop lyrics are a song surface: an episode has no lyrics, so the
+    /// floating window stays hidden even when the preference is on.
+    private var desktopLyricsVisible: Bool {
+        settings.showDesktopLyrics && player.currentTrack?.isPodcastProgram != true
+    }
+
     /// The split between sidebar and page. On macOS the sidebar is a fixed
     /// panel and the page slides over it (see `MacSidebarShell`); iPad keeps
     /// the system split view.
@@ -230,13 +236,16 @@ struct MainWindow: View {
             // over the page's collapse chevron and takes its clicks.
             if player.showNowPlaying { nowPlayingChromeHidden = true }
 #endif
-            DesktopLyricsController.shared.sync(with: settings.showDesktopLyrics)
+            DesktopLyricsController.shared.sync(with: desktopLyricsVisible)
             await DownloadManager.shared.start()
             if KumonePaths.isOfflineUITest { selection = .downloaded }
             await account.bootstrap()
         }
         .onChange(of: settings.showDesktopLyrics) { _ in
-            DesktopLyricsController.shared.sync(with: settings.showDesktopLyrics)
+            DesktopLyricsController.shared.sync(with: desktopLyricsVisible)
+        }
+        .onChange(of: player.currentTrack?.isPodcastProgram) { _ in
+            DesktopLyricsController.shared.sync(with: desktopLyricsVisible)
         }
         #if os(macOS)
         .onChange(of: settings.showMainWindowAmbientBackground) { _ in

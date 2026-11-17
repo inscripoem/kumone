@@ -223,13 +223,15 @@ struct PlayerBar: View {
                 }
                 .help("歌词")
             }
-            PlayerIconButton(
-                icon: "inset.filled.bottomthird.square", size: 13,
-                isActive: settings.showDesktopLyrics
-            ) {
-                settings.showDesktopLyrics.toggle()
+            if player.currentTrack?.isPodcastProgram != true {
+                PlayerIconButton(
+                    icon: "inset.filled.bottomthird.square", size: 13,
+                    isActive: settings.showDesktopLyrics
+                ) {
+                    settings.showDesktopLyrics.toggle()
+                }
+                .help("桌面歌词")
             }
-            .help("桌面歌词")
             PlayerIconButton(
                 icon: "list.bullet", size: 13,
                 isActive: player.activePanel == .queue,
