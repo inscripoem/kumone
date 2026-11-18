@@ -12,10 +12,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The fork's macOS runners have been recycling jobs at the 15-minute mark,
-  # so the expensive work is split into two shorter jobs. Tests gate the app.
+  # Tests need the macos-26 rendering environment (the xcode-27 image fails
+  # CommentShareCardTests' alpha checks); app packaging stays on xcode-27 for
+  # its capacity. Each job is short enough for the queue window.
   macos-test:
-    runs-on: xcode-27
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
