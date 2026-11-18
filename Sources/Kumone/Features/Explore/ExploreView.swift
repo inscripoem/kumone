@@ -80,10 +80,6 @@ struct ExploreView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                podcastEntry
-                    .padding(.top, 8)
-                    .padding(.horizontal, Theme.Layout.contentInset)
-
                 categoryChips
 
                 if model.selectedCategory == "排行榜" {
@@ -151,37 +147,6 @@ struct ExploreView: View {
             .padding(.vertical, 2)
         }
         .shelfEdgeClip()
-    }
-
-    /// The iPhone's discoverable entry into podcasts; iPad and macOS reach the
-    /// same page from the sidebar.
-    private var podcastEntry: some View {
-        NavigationLink(value: Destination.podcasts) {
-            HStack(spacing: 12) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Theme.accent)
-                    .frame(width: 44, height: 44)
-                    .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("播客")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text("发现声音节目")
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(12)
-            .background(.primary.opacity(0.04),
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.large, style: .continuous))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     private func playPlaylist(_ id: Int) {
