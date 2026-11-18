@@ -203,6 +203,12 @@ struct PlayerBar: View {
 
     // MARK: - Right: quality / panels / volume
 
+    /// Episodes have no lyrics: the two lyric controls stay in the bar so the
+    /// transport does not shift, but they are disabled with that reason.
+    private var isPodcastPlaying: Bool {
+        player.currentTrack?.isPodcastProgram == true
+    }
+
     private func optionsSection(compact: Bool) -> some View {
         HStack(spacing: 4) {
             if !compact, let level = player.servedQuality,
@@ -214,24 +220,22 @@ struct PlayerBar: View {
                     .padding(.trailing, 2)
                     .help("来自 \(player.unblockSource ?? "")")
             }
-            if player.currentTrack?.isPodcastProgram != true {
-                PlayerIconButton(
-                    icon: "quote.bubble", size: 13,
-                    isActive: player.activePanel == .lyrics
-                ) {
-                    player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
-                }
-                .help("歌词")
+            PlayerIconButton(
+                icon: "quote.bubble", size: 13,
+                isActive: player.activePanel == .lyrics,
+                disabled: isPodcastPlaying
+            ) {
+                player.activePanel = player.activePanel == .lyrics ? nil : .lyrics
             }
-            if player.currentTrack?.isPodcastProgram != true {
-                PlayerIconButton(
-                    icon: "inset.filled.bottomthird.square", size: 13,
-                    isActive: settings.showDesktopLyrics
-                ) {
-                    settings.showDesktopLyrics.toggle()
-                }
-                .help("桌面歌词")
+            .help(isPodcastPlaying ? Text("播客没有歌词") : Text("歌词"))
+            PlayerIconButton(
+                icon: "inset.filled.bottomthird.square", size: 13,
+                isActive: settings.showDesktopLyrics && !isPodcastPlaying,
+                disabled: isPodcastPlaying
+            ) {
+                settings.showDesktopLyrics.toggle()
             }
+            .help(isPodcastPlaying ? Text("播客没有歌词") : Text("桌面歌词"))
             PlayerIconButton(
                 icon: "list.bullet", size: 13,
                 isActive: player.activePanel == .queue,
